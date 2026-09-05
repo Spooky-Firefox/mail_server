@@ -1,12 +1,13 @@
 # Roundcube webmail, talking IMAP/SMTP to the docker-mailserver Service in
-# this same namespace. Uses the public hostname (mail.ronstad.se) rather than
-# the in-cluster Service DNS name so the TLS certificate hostname matches -
-# this relies on the router supporting NAT hairpin/loopback (confirmed
-# working here). If that ever proves unreliable, switch DEFAULT_HOST/
-# SMTP_SERVER to the in-cluster Service DNS name
-# (mail-server-docker-mailserver.mail.svc.cluster.local) and add a
-# hostAliases entry mapping mail.ronstad.se to that Service's ClusterIP so
-# the TLS hostname still matches.
+# this same namespace. Connects using the hostname mail.ronstad.se (so the
+# TLS certificate's hostname still validates), but hostAliases below pins
+# that name to the mailserver Service's ClusterIP - pod-to-pod traffic
+# routed out through the router and back in via NAT hairpin/loopback was
+# confirmed unreliable (connections time out), so this avoids leaving the
+# cluster at all. If the mail-server-docker-mailserver Service is ever
+# deleted/recreated its ClusterIP can change - update the IP below with
+# `kubectl -n mail get svc mail-server-docker-mailserver` if IMAP/SMTP
+# connections start timing out again.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -39,6 +40,10 @@ spec:
       labels:
         app: roundcube
     spec:
+      hostAliases:
+        - ip: "10.43.221.236"
+          hostnames:
+            - mail.ronstad.se
       containers:
         - name: roundcube
           image: roundcube/roundcubemail:1.7.3-apache
