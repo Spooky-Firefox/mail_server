@@ -1,0 +1,110 @@
+# Roundcube webmail, talking IMAP/SMTP to the docker-mailserver Service in
+# this same namespace. Uses the public hostname (mail.ronstad.se) rather than
+# the in-cluster Service DNS name so the TLS certificate hostname matches -
+# this relies on the router supporting NAT hairpin/loopback (confirmed
+# working here). If that ever proves unreliable, switch DEFAULT_HOST/
+# SMTP_SERVER to the in-cluster Service DNS name
+# (mail-server-docker-mailserver.mail.svc.cluster.local) and add a
+# hostAliases entry mapping mail.ronstad.se to that Service's ClusterIP so
+# the TLS hostname still matches.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: roundcube-db
+  namespace: mail
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roundcube
+  namespace: mail
+  labels:
+    app: roundcube
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: roundcube
+  template:
+    metadata:
+      labels:
+        app: roundcube
+    spec:
+      containers:
+        - name: roundcube
+          image: roundcube/roundcubemail:1.7.3-apache
+          ports:
+            - containerPort: 80
+          env:
+            - name: ROUNDCUBEMAIL_DB_TYPE
+              value: sqlite
+            - name: ROUNDCUBEMAIL_DEFAULT_HOST
+              value: ssl://mail.ronstad.se
+            - name: ROUNDCUBEMAIL_DEFAULT_PORT
+              value: "993"
+            - name: ROUNDCUBEMAIL_SMTP_SERVER
+              value: tls://mail.ronstad.se
+            - name: ROUNDCUBEMAIL_SMTP_PORT
+              value: "587"
+          volumeMounts:
+            - name: db
+              mountPath: /var/roundcube/db
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: db
+          persistentVolumeClaim:
+            claimName: roundcube-db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: roundcube
+  namespace: mail
+spec:
+  selector:
+    app: roundcube
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: roundcube
+  namespace: mail
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: webmail.ronstad.se
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: roundcube
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - webmail.ronstad.se
+      secretName: roundcube-tls

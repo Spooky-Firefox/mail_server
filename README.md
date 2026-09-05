@@ -120,6 +120,19 @@ to retrieve it again later, it's saved in the container at
   address and check the score - this will surface any remaining SPF/DKIM/
   DMARC/RBL issues, including the residential-IP problem flagged above.
 
+### 8. Webmail (Roundcube)
+
+`k8s/roundcube.yaml` deploys [Roundcube](https://roundcube.net/) at
+`https://webmail.ronstad.se`, talking IMAP/SMTP to the mailserver over the
+public hostname (relies on your router supporting NAT hairpin/loopback -
+already confirmed working here). ArgoCD picks it up automatically (it's part
+of the `k8s/` source already synced by the Application) - no extra steps
+beyond DNS (already covered by the existing wildcard record) and the
+Certificate being issued by cert-manager via the Ingress annotation.
+
+Log in with the full email address (`olle@ronstad.se`) and its mailbox
+password.
+
 ## Notes
 
 - Rspamd handles spam filtering and DKIM signing (chart defaults:
