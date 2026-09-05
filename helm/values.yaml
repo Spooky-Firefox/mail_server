@@ -1,0 +1,44 @@
+# Values for the docker-mailserver Helm chart (docker-mailserver/docker-mailserver-helm).
+# Referenced by argocd/application.yaml via ArgoCD's multi-source $values mechanism.
+# Full option list: https://github.com/docker-mailserver/docker-mailserver-helm/blob/master/charts/docker-mailserver/values.yaml
+
+# Name of the TLS secret cert-manager writes to (see k8s/certificate.yaml).
+certificate: mail-tls
+
+service:
+  # k3s ships its own lightweight LoadBalancer (Klipper/ServiceLB) which, on a
+  # single-node cluster, binds these ports directly on the node's LAN IP -
+  # the same mechanism already used for Traefik's 80/443.
+  type: LoadBalancer
+  # "Local" preserves the real client IP for spam/RBL checks and Fail2Ban.
+  # Klipper's LB does NOT support the PROXY protocol, so this is the only
+  # way on k3s to see real client IPs (see proxyProtocol below).
+  externalTrafficPolicy: Local
+
+proxyProtocol:
+  # Not supported by k3s's built-in ServiceLB. externalTrafficPolicy: Local
+  # above already preserves client IPs without it.
+  enabled: false
+
+persistent_volume_claims:
+  mail-data:
+    size: 20Gi
+    storageClass: local-path
+  mail-config:
+    storageClass: local-path
+  mail-state:
+    storageClass: local-path
+  mail-log:
+    storageClass: local-path
+
+deployment:
+  env:
+    OVERRIDE_HOSTNAME: mail.ronstad.se
+    POSTMASTER_ADDRESS: postmaster@ronstad.se
+    TZ: Europe/Stockholm
+
+    # Recommended by docker-mailserver docs: rspamd handles DKIM signing,
+    # spam filtering and greylisting; opendkim/opendmarc/policyd-spf stay
+    # disabled (chart defaults already reflect this combo).
+    SPOOF_PROTECTION: 1
+    ENABLE_FAIL2BAN: 1

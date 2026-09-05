@@ -1,0 +1,47 @@
+# ArgoCD Application for the mail server, following the same pattern as this
+# cluster's other apps (project: default, automated prune+selfHeal,
+# CreateNamespace=true) - see `kubectl -n argocd get application cal-t -o yaml`
+# for reference.
+#
+# This one is a multi-source Application:
+#   1. The upstream docker-mailserver Helm chart, pinned to a release tag.
+#   2. This repo, referenced only as a source of the values file (no `path`).
+#   3. This repo's k8s/ directory, applied as plain manifests (the
+#      cert-manager Certificate).
+#
+# Not deployed by ArgoCD itself - apply once by hand after pushing this repo
+# to GitHub (see README.md):
+#   kubectl apply -f argocd/application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mail-server
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/docker-mailserver/docker-mailserver-helm.git
+      targetRevision: docker-mailserver-5.1.1
+      path: charts/docker-mailserver
+      helm:
+        releaseName: mail-server
+        valueFiles:
+          - $values/helm/values.yaml
+    - repoURL: https://github.com/Spooky-Firefox/mail-server.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: https://github.com/Spooky-Firefox/mail-server.git
+      targetRevision: HEAD
+      path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mail
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
