@@ -104,13 +104,13 @@ kubectl exec -it -n mail deploy/mail-server-docker-mailserver -- \
 ```console
 kubectl exec -it -n mail deploy/mail-server-docker-mailserver -- \
   setup config dkim keysize 2048 domain 'ronstad.se'
-
-kubectl exec -it -n mail deploy/mail-server-docker-mailserver -- \
-  cat /tmp/docker-mailserver/rspamd/dkim/ronstad.se.mail.txt
 ```
 
-Publish the printed value as a `TXT` record at `mail._domainkey.ronstad.se`
-(selector name is `mail` by default).
+This prints the `TXT` record value directly - publish it at
+`mail._domainkey.ronstad.se` (selector name is `mail` by default). If you need
+to retrieve it again later, it's saved in the container at
+`/tmp/docker-mailserver/rspamd/dkim/rsa-2048-mail-ronstad.se.public.dns.txt`
+(on the `mail-config` PVC).
 
 ### 7. Test
 
