@@ -45,8 +45,8 @@ cd /home/olle/Documents/mail_server
 git init -b main
 git add helm k8s argocd README.md
 git commit -m "Add docker-mailserver k8s/Helm/ArgoCD setup"
-# create github.com/Spooky-Firefox/mail-server first (empty repo, no README/license), then:
-git remote add origin git@github.com:Spooky-Firefox/mail-server.git
+# create github.com/Spooky-Firefox/mail_server first (empty repo, no README/license), then:
+git remote add origin git@github.com:Spooky-Firefox/mail_server.git
 git push -u origin main
 ```
 
